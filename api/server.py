@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
@@ -20,6 +21,14 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="MiniVector API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class SearchRequest(BaseModel):
     query: str
@@ -45,18 +54,13 @@ async def search(request: SearchRequest):
     query_vector = embedder.embed_query(request.query)
     results = store.search(query_vector, k=request.k)
     took_ms = (time.time() - start) * 1000
-    return SearchResponse(query=request.query, results=results, took_ms=took_ms)
+    return SearchResponse(query=request.query, results=results,took_ms=took_ms)
 
 @app.get("/stats")
 async def stats():
-    return {"num_vectors": store.index.ntotal if store else 0,
+    return {"num_vectors": store.index.ntotal if store else 0, 
             "dimension": store.dimension if store else 0}
-@app.get("/article/{article_id}")
-async def get_article(article_id: str):
-    for doc in store.metadata:
-        if doc['id'] == article_id:
-            return doc
-    raise HTTPException(status_code=404, detail="Article not found")
+
 @app.get("/")
 async def root():
-    return {"message": "MiniVector API - POST to /search with {query, k}"}
+    return {"message": "MiniVector API"}
