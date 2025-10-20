@@ -28,7 +28,7 @@ def generate_embeddings(
             'id': doc['id'],
             'title': doc['title'],
             'category': doc.get('category', 'Unknown'),
-            'text_preview': doc['text'][:100]}
+            'text_preview': doc['text'][:1000]}
         for doc in documents
     ]
     with open(output_metadata, 'w', encoding='utf-8') as f:
