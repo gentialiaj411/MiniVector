@@ -1,8 +1,3 @@
-"""
-Generate embeddings for all documents.
-Converts text to vectors and saves them.
-"""
-
 import json
 import numpy as np
 from pathlib import Path
@@ -16,11 +11,8 @@ from tqdm import tqdm
 def generate_embeddings(
     input_path="data/raw/texts.json",
     output_vectors="data/processed/vectors.npy",
-    output_metadata="data/processed/metadata.json"
-):    
-    
+    output_metadata="data/processed/metadata.json"):    
     Path(output_vectors).parent.mkdir(parents=True, exist_ok=True)
-    
     
     with open(input_path, 'r', encoding='utf-8') as f:
         documents = json.load(f)
@@ -32,18 +24,15 @@ def generate_embeddings(
     np.save(output_vectors, embeddings)
     file_size_mb = Path(output_vectors).stat().st_size / 1024 / 1024
     5
-    metadata = [
-        {
+    metadata = [{
             'id': doc['id'],
             'title': doc['title'],
             'category': doc.get('category', 'Unknown'),
-            'text_preview': doc['text'][:100]  
-        }
+            'text_preview': doc['text'][:100]}
         for doc in documents
     ]
     with open(output_metadata, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2)
-
 
 if __name__ == "__main__":
     generate_embeddings()
