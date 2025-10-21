@@ -21,6 +21,8 @@ def generate_embeddings(
     doc_ids = [doc['id'] for doc in documents]
     
     embeddings = embedder.embed(texts, batch_size=256)
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    embeddings = embeddings / (norms+1e-12)
     np.save(output_vectors, embeddings)
     file_size_mb = Path(output_vectors).stat().st_size / 1024 / 1024
     5
