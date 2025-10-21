@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
+from sentence_transformers import CrossEncoder 
+import numpy as np
 import sys
 import json
 from pathlib import Path
@@ -13,12 +15,14 @@ from minivector.vector_store import VectorStore
 embedder = None
 store = None
 metadata = None  
+reranker = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global embedder, store, metadata
+    global embedder, store, metadata, reranker
     embedder = Embedder()
     store = VectorStore()
+    reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
     store.load_index()
 
     meta_path = Path("data/processed/metadata.json")
@@ -63,9 +67,16 @@ async def search(request: SearchRequest):
     import time
     start = time.time()
     query_vector = embedder.embed_query(request.query)
-    results = store.search(query_vector, k=request.k)
+    query_vector = query_vector / (np.linalg.norm(query_vector) + 1e-12)
+    candidates = store.search(query_vector, k=min(request.k * 4, 100))
+    pairs = [(request.query, cand.get('text') or cand.get('text_preview', '')) for cand in candidates]
+    scores = reranker.predict(pairs)
+    for cand, s in zip(candidates, scores):
+        cand['score'] = float(s)
+    candidates.sort(key=lambda x: x['score'], reverse=True)
+    results = candidates[:request.k]
     took_ms = (time.time() - start) * 1000
-    return SearchResponse(query=request.query, results=results, took_ms=took_ms)
+    return SearchResponse( query=request.query, results=results, took_ms=took_ms)
 
 @app.get("/article/{doc_id}")
 async def get_article(doc_id: str):
